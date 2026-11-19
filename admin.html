@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="pt-PT">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>NeuroQuiz · Administração</title>
+<style>
+:root{--bg:#070d27;--panel:#111a3b;--ink:#f7f7ff;--muted:#b7c1e6;--cyan:#46d9ed;--violet:#9b82ff;--green:#4ee0ad;--red:#ff718c}
+*{box-sizing:border-box}body{margin:0;min-height:100vh;background:radial-gradient(ellipse at 78% 12%,#28245d 0,transparent 38%),linear-gradient(135deg,#070d27,#11163b 60%,#25184d);color:var(--ink);font-family:Inter,system-ui,sans-serif;padding:24px}
+main{max-width:1100px;margin:auto}.panel{background:#111a3bee;border:1px solid #ffffff24;border-radius:20px;padding:24px;margin:18px 0;box-shadow:0 20px 60px #0005}h1{color:var(--cyan)}h2{margin-top:0}.muted{color:var(--muted)}input,button{font:inherit;border-radius:10px;padding:12px;border:1px solid #ffffff30}input{display:block;width:100%;background:#080f2b;color:white;margin:8px 0 14px}button{background:linear-gradient(110deg,var(--cyan),#9cecf1);color:#101633;font-weight:800;cursor:pointer;border:0}button.secondary{background:#ffffff12;color:white;border:1px solid #ffffff32}.row{display:flex;gap:12px;flex-wrap:wrap;align-items:center}.row>*{flex:1}.hidden{display:none}.notice{padding:12px;background:#ffffff0d;border-radius:10px;margin-top:12px;white-space:pre-wrap}.participant{border:1px solid #ffffff24;border-radius:14px;padding:16px;margin:12px 0}.answer{background:#080f2b;border-radius:10px;padding:12px;margin:8px 0;overflow-wrap:anywhere}.answer small{color:var(--cyan);display:block;margin-bottom:6px}table{width:100%;border-collapse:collapse}td,th{text-align:left;padding:10px;border-bottom:1px solid #ffffff20}th{color:var(--cyan)}@media(max-width:600px){body{padding:12px}.panel{padding:16px}table{font-size:.85rem}}
+</style>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script><script src="supabase-config.js"></script>
+</head><body><main>
+<h1>NEUROQUIZ · Administração</h1><p class="muted">Área privada. Os nomes e todas as respostas são visíveis apenas a administradores autorizados.</p>
+<section id="login" class="panel"><h2>Iniciar sessão</h2><label>Email de administrador</label><input id="email" type="email" autocomplete="username"><label>Palavra-passe</label><input id="password" type="password" autocomplete="current-password"><button id="loginBtn">Entrar</button><div id="loginMsg" class="notice"></div></section>
+<section id="dashboard" class="hidden">
+ <div class="panel"><div class="row"><div><h2>Participantes e respostas</h2><p id="summary" class="muted"></p></div><button id="csvBtn">Exportar CSV</button><button id="refreshBtn" class="secondary">Atualizar</button><button id="logoutBtn" class="secondary">Terminar sessão</button></div><div id="results"></div></div>
+</section>
+</main>
+<script>
+const url=window.NEUROQUIZ_SUPABASE_URL||'',key=window.NEUROQUIZ_SUPABASE_ANON_KEY||'';
+const db=(window.supabase&&url&&key)?window.supabase.createClient(url,key):null;
+const $=id=>document.getElementById(id);
+function esc(v){return String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
+let records=[];
+function showMessage(id,msg){$(id).textContent=msg;}
+async function load(){
+ const {data,error}=await db.rpc('get_neuroquiz_admin_results');if(error)throw error;records=data||[];
+ $('summary').textContent=`${records.length} participação(ões) concluída(s).`;
+ $('results').innerHTML=records.map((p,i)=>`<article class="participant"><h3>${i+1}. ${esc(p.full_name)}</h3><p class="muted">Pontuação: ${p.total>0?esc(p.score+'/'+p.total):'não aplicável'} · ${new Date(p.completed_at).toLocaleString('pt-PT')}</p><details><summary>Ver todas as respostas (${(p.answers||[]).length})</summary>${(p.answers||[]).map(a=>`<div class="answer"><small>${esc(a.category)} · ${esc(a.type)} · Atividade ${esc(a.activity_index)}</small><b>${esc(a.question)}</b><p>${esc(typeof a.answer==='object'?JSON.stringify(a.answer,null,2):a.answer)}</p></div>`).join('')||'<p class="muted">Sem respostas registadas.</p>'}</details></article>`).join('')||'<p class="muted">Ainda não existem participantes.</p>';
+}
+$('loginBtn').onclick=async()=>{if(!db){showMessage('loginMsg','Configura primeiro o supabase-config.js.');return;}showMessage('loginMsg','A autenticar…');const {error}=await db.auth.signInWithPassword({email:$('email').value.trim(),password:$('password').value});if(error){showMessage('loginMsg',error.message);return;}try{await load();$('login').classList.add('hidden');$('dashboard').classList.remove('hidden');}catch(e){await db.auth.signOut();showMessage('loginMsg',e.message);}};
+$('refreshBtn').onclick=async()=>{try{await load();}catch(e){alert(e.message);}};
+$('logoutBtn').onclick=async()=>{await db.auth.signOut();$('dashboard').classList.add('hidden');$('login').classList.remove('hidden');};
+$('csvBtn').onclick=()=>{const rows=[['Nome','Pontuação','Total','Data','Categoria','Tipo','Atividade','Pergunta','Resposta']];for(const p of records){for(const a of (p.answers||[])){rows.push([p.full_name,p.score,p.total,p.completed_at,a.category,a.type,a.activity_index,a.question,typeof a.answer==='object'?JSON.stringify(a.answer):a.answer]);}}const csv='\ufeff'+rows.map(r=>r.map(v=>'"'+String(v??'').replace(/"/g,'""')+'"').join(';')).join('\r\n');const blob=new Blob([csv],{type:'text/csv;charset=utf-8'});const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='neuroquiz-resultados.csv';a.click();URL.revokeObjectURL(a.href);};
+</script></body></html>

@@ -1,0 +1,48 @@
+NEUROQUIZ — UC 5002
+Versão com registo de participantes, resultados públicos censurados e painel privado de administração.
+
+O QUE FOI ACRESCENTADO
+- Campo obrigatório para o participante introduzir nome ou pseudónimo antes de jogar.
+- Registo das respostas submetidas durante as atividades.
+- Gravação da pontuação, respostas e data/hora no Supabase.
+- No fim, o participante pode consultar a classificação de todos e apenas as respostas escritas das atividades de opinião (nuvem de palavras, pergunta aberta e brainstorming).
+- Os nomes são censurados no ecrã público.
+- Página admin.html para o administrador autenticado consultar nomes verdadeiros e todas as respostas, com exportação CSV.
+- O design original, fundo e atividades foram preservados.
+
+ANTES DE PUBLICAR: CONFIGURAR O SUPABASE
+1. Cria um projeto em https://supabase.com/.
+2. No projeto, abre SQL Editor > New query.
+3. Abre o ficheiro supabase-schema.sql deste ZIP, copia todo o conteúdo e executa-o no SQL Editor.
+4. No Supabase, abre Project Settings > API (ou Data API / API Keys, conforme a interface).
+5. Copia o Project URL e a chave anon/public (NUNCA uses a service_role/secret key no site).
+6. Abre supabase-config.js e substitui:
+   COLOCA_AQUI_O_PROJECT_URL pelo Project URL
+   COLOCA_AQUI_A_ANON_PUBLIC_KEY pela chave anon/public
+7. Guarda o ficheiro. Mantém supabase-config.js, index.html, admin.html e a pasta assets juntos.
+8. Faz ZIP da pasta UC5002_Jogo_Web (ou envia a pasta conforme o fluxo do Wasmer) e publica no Wasmer.
+
+CRIAR O UTILIZADOR ADMINISTRADOR
+1. No Supabase, abre Authentication > Users.
+2. Adiciona um utilizador com o email e palavra-passe que serão usados pelo administrador.
+3. Copia o UUID/ID desse utilizador.
+4. No SQL Editor executa, substituindo o UUID pelo ID real:
+   insert into public.neuroquiz_admins (user_id) values ('UUID_DO_UTILIZADOR');
+5. Abre https://TEU-SITE/admin.html e inicia sessão com esse email e palavra-passe.
+
+ENDEREÇOS
+- Jogo: https://TEU-SITE/ (index.html)
+- Administração: https://TEU-SITE/admin.html
+
+PRIVACIDADE E FUNCIONAMENTO
+- As tabelas não permitem leitura direta pública.
+- O painel admin exige sessão Supabase e um utilizador incluído em neuroquiz_admins.
+- O RPC público só devolve resultados quando recebe o identificador e token emitidos depois da submissão do quiz.
+- A vista pública devolve nomes censurados, pontuações e respostas escritas de opinião. Não devolve respostas de conhecimentos nem nomes completos.
+- O painel privado mostra nomes completos e todas as respostas registadas.
+- A chave anon/public é própria para utilização no navegador; nunca publiques a service_role key.
+- Como o jogo é uma aplicação estática no navegador, a pontuação enviada pelo cliente não é resistente a fraude deliberada (por exemplo, alguém tecnicamente experiente pode manipular pedidos). É adequada para recolha de respostas num contexto de turma, não para avaliações de alto risco.
+- As respostas só são guardadas quando o participante conclui o jogo. Recomenda-se informar os participantes sobre a recolha de nomes e respostas antes de começarem.
+
+NOTA
+A ligação à base de dados só fica ativa depois de criares o projeto Supabase, executares o SQL e preencheres supabase-config.js. O ZIP não contém nem deve conter credenciais privadas.
